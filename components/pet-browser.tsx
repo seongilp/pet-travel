@@ -2,7 +2,14 @@
 
 import { List, Map as MapIcon, PawPrint, Search, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import { BottomSheet, SNAP_RATIO, type SheetSnap } from '@/components/bottom-sheet';
 import { SpotCard, type SpotListItem } from '@/components/spot-card';
@@ -64,8 +71,37 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
   const [access, setAccess] = useState<PetAccess | ''>('');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<View>('list');
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
+
+  /*
+   * 기본 뷰는 **지도**("목록보단 지도를 첫 화면으로"). 단 ?view=list 공유 링크는 살아 있어야 한다.
+   *
+   * useSyncExternalStore 로 URL 을 읽는다(useIsCompact 와 같은 하이드레이션 안전 패턴):
+   * 서버 스냅샷은 항상 'map'(기본) → 서버·클라 첫 페인트가 일치하고, 클라에서 URL 값으로
+   * 정정된다. window 를 useState 초기값이나 effect 의 setState 로 읽으면 하이드레이션 불일치나
+   * 캐스케이드 렌더가 난다. popstate 도 구독해 뒤로가기까지 반영한다.
+   */
+  const urlView = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('popstate', cb);
+      return () => window.removeEventListener('popstate', cb);
+    },
+    () => (new URLSearchParams(window.location.search).get('view') === 'list' ? 'list' : 'map'),
+    () => 'map' as View,
+  );
+  // 사용자가 토글하면 override 가 URL 값을 이긴다(replaceState 는 popstate 를 안 쏘기 때문).
+  const [viewOverride, setViewOverride] = useState<View | null>(null);
+  const view: View = viewOverride ?? urlView;
+
+  // 뷰를 바꿀 때 URL 도 맞춘다 — 지금 보는 화면을 그대로 공유할 수 있게.
+  // 지도(기본)는 쿼리를 지우고, 목록일 때만 ?view=list 를 남긴다. history 항목은 안 쌓는다(replace).
+  const changeView = useCallback((next: View) => {
+    setViewOverride(next);
+    const url = new URL(window.location.href);
+    if (next === 'list') url.searchParams.set('view', 'list');
+    else url.searchParams.delete('view');
+    window.history.replaceState(null, '', url);
+  }, []);
 
   const isCompact = useIsCompact();
   const deferredQuery = useDeferredValue(query);
@@ -153,11 +189,11 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
             </p>
           </div>
         </div>
-        {/* 보기 전환 — 모바일 우선이라 목록이 기본. */}
+        {/* 보기 전환 — 지도가 기본, 목록 토글 유지(?view=list 공유 링크도 동작). */}
         <div className="border-border bg-card/60 flex rounded-full border p-0.5">
           <button
             type="button"
-            onClick={() => setView('list')}
+            onClick={() => changeView('list')}
             aria-pressed={view === 'list'}
             className={cn(
               'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium',
@@ -168,7 +204,7 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
           </button>
           <button
             type="button"
-            onClick={() => setView('map')}
+            onClick={() => changeView('map')}
             aria-pressed={view === 'map'}
             className={cn(
               'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium',
@@ -205,12 +241,19 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
           )}
         </div>
 
-        {/* 동반 유형 — 핵심 필터라 맨 위, 색을 칩에 얹는다. */}
+        {/*
+          동반 유형 — 핵심 필터.
+          'unknown'(정보 없음)은 **필터 칩으로 제공하지 않는다.** 아무도 "정보 없는 곳만
+          보여줘"라고 찾지 않고, 지금 동반유형 커버리지가 8%뿐이라 그 칩을 누르면 92%가 나와
+          변별력이 없다. 대신 필터를 안 걸면('전체') 미수집 항목도 그대로 나오고, 전구역/일부
+          구역을 누를 때만 좁힌다. **결과(목록·지도)에서 정보없음 항목을 빼는 게 아니라 필터
+          선택지에서만 뺀 것이다** — 상세의 "정보 없음" 표기는 그대로 유지된다.
+        */}
         <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
           <Chip active={access === ''} onClick={() => setAccess('')}>
             전체
           </Chip>
-          {(['all', 'part', 'unknown'] as PetAccess[]).map((a) => (
+          {(['all', 'part'] as PetAccess[]).map((a) => (
             <Chip key={a} active={access === a} onClick={() => setAccess(access === a ? '' : a)}>
               <span
                 className="mr-1 inline-block size-1.5 rounded-full align-middle"

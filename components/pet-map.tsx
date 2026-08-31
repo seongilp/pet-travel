@@ -1,7 +1,7 @@
 'use client';
 
 import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { accessTone, type Spot } from '@/lib/pet';
 
@@ -68,6 +68,11 @@ export function PetMap({
   const onSelectRef = useRef(onSelect);
   const spotsRef = useRef(spots);
   const bottomInsetRef = useRef(bottomInsetRatio);
+  /**
+   * 현위치 조회 실패 메시지. null 이면 표시 안 함.
+   * 조용히 무시하지 않고 사용자에게 알린다(권한 거부·위치 불가·시간초과를 구분).
+   */
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   useEffect(() => void (onSelectRef.current = onSelect), [onSelect]);
   useEffect(() => void (spotsRef.current = spots), [spots]);
@@ -97,7 +102,31 @@ export function PetMap({
     // 잃으므로, 패널이 안 가리는 왼쪽으로 옮겨 둘 다 보이고 누를 수 있게 한다.
     // 모바일은 상세가 하단 시트라 왼쪽/오른쪽 어느 쪽이든 안 겹치지만, 코너를 하나로 통일한다.
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: false }), 'top-left');
+    /*
+     * 현위치 버튼(◎). **사용자가 눌렀을 때만** 권한을 요청한다(자동 팝업 안 함 — 거부율↑·무례).
+     * 성공 시 maplibre 가 위치 점 + **정확도 원**(showAccuracyCircle)을 그리고 그 주변으로
+     * 이동한다 — 정확도가 낮으면 원이 크게 보여 "정확한 척"을 안 하게 된다. 위치는 브라우저
+     * 안에서만 쓰고 **서버로 보내지 않는다**(개인정보). HTTPS 에서만 동작한다(프로덕션 OK).
+     * timeout 을 줘야 code 3(시간초과)이 뜰 수 있다 — 안 주면 무한 대기한다.
+     */
+    const geolocate = new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true, timeout: 10000 },
+      showAccuracyCircle: true,
+      trackUserLocation: false,
+    });
+    map.addControl(geolocate, 'top-left');
+    // 성공하면 이전 오류 메시지를 지운다.
+    geolocate.on('geolocate', () => setGeoError(null));
+    // 실패는 조용히 넘기지 않는다. code 1=거부, 2=위치 불가, 3=시간초과.
+    geolocate.on('error', (e: GeolocationPositionError) => {
+      setGeoError(
+        e?.code === 1
+          ? '위치 권한이 거부되었습니다. 브라우저 설정에서 허용할 수 있어요.'
+          : e?.code === 3
+            ? '위치 확인이 시간 초과됐습니다. 잠시 후 다시 시도해 주세요.'
+            : '현재 위치를 확인할 수 없습니다.',
+      );
+    });
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
     map.on('load', () => {
@@ -274,6 +303,21 @@ export function PetMap({
     <div className="relative size-full">
       {/* maplibre-gl.css 가 position:relative 를 걸어 inset-0 을 이긴다. 크기는 size-full 로 직접 준다. */}
       <div ref={containerRef} className="size-full" />
+
+      {/* 현위치 조회 실패 토스트. 앱은 계속 동작하고, 왜 안 됐는지만 담담하게 알린다. */}
+      {geoError && (
+        <div className="absolute inset-x-3 bottom-3 z-10 flex items-start gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-sm shadow-lg backdrop-blur">
+          <span className="flex-1 text-muted-foreground">{geoError}</span>
+          <button
+            type="button"
+            onClick={() => setGeoError(null)}
+            aria-label="닫기"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
