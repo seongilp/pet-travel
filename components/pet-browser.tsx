@@ -2,7 +2,7 @@
 
 import { List, Map as MapIcon, PawPrint, Search, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { BottomSheet, SNAP_RATIO, type SheetSnap } from '@/components/bottom-sheet';
 import { SpotCard, type SpotListItem } from '@/components/spot-card';
@@ -108,6 +108,28 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
     setSheetSnap('peek');
   }, []);
 
+  /*
+   * Esc 로 상세를 닫는다(모달·패널 표준 동작). 데스크톱 패널·모바일 시트 공통.
+   *
+   * 리스너는 상세가 열렸을 때만 붙이고 닫히면 뗀다 — 항상 붙여 두면 다른 Esc 소비처와
+   * 경쟁한다. 입력창에 포커스가 있을 땐 가로채지 않는다: 검색창의 Esc 는 그 자리에서
+   * 검색어를 지우는 게 자연스럽고(아래 input 의 onKeyDown), 패널을 닫아버리면 방금 친
+   * 검색을 잃는다. ipyang/shortcuts 의 isTyping 가드와 같은 기준이다.
+   */
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const t = e.target as HTMLElement | null;
+      const typing =
+        t?.tagName === 'INPUT' || t?.tagName === 'TEXTAREA' || t?.isContentEditable;
+      if (typing) return;
+      closeDetail();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, closeDetail]);
+
   const hasFilter = Boolean(sido || typeId || access || query.trim());
   const resetFilters = useCallback(() => {
     setSido('');
@@ -166,6 +188,13 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            // 검색창에서 Esc 는 검색어만 지운다(패널 닫기는 위 window 리스너가 타이핑 중엔 건드리지 않음).
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && query) {
+                e.stopPropagation();
+                setQuery('');
+              }
+            }}
             placeholder="장소·주소 검색"
             className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
           />

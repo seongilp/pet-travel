@@ -74,4 +74,4 @@ npm run build && npm start
 
 ## 배포
 
-Vercel, 함수 리전 **`icn1`(서울)** 고정(`vercel.json`). `iad1` 이면 TourAPI 왕복이 태평양을 건너 타임아웃난다.
+**배포 주소: https://meongtrip.vercel.app** (pet-travel-seongilp.vercel.app 도 유지). Vercel, 함수 리전 **`icn1`(서울)** 고정(`vercel.json`). `iad1` 이면 TourAPI 왕복이 태평양을 건너 타임아웃난다.

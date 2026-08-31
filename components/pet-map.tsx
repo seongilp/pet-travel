@@ -84,13 +84,21 @@ export function PetMap({
       fitBoundsOptions: { padding: FIT_PADDING },
       minZoom: 4,
       maxZoom: 16,
-      attributionControl: { compact: true },
+      // 기본 저작권(우하단)을 끄고 왼쪽에 다시 단다. 데스크톱 지도뷰에서 상세 패널이
+      // 오른쪽 전체(top-3 bottom-3 right-3)를 덮어 우측 컨트롤을 가리기 때문이다.
+      attributionControl: false,
       // CARTO 글리프 서버에 한글이 없어 라벨이 통째로 안 보인다. 브라우저 폰트로 그린다.
       localIdeographFontFamily: "'Noto Sans KR', sans-serif",
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: false }), 'top-right');
+    // 줌·현위치·저작권을 모두 **왼쪽**에 둔다.
+    // 왜: 상세 패널이 지도 오른쪽에 떠서(데스크톱 지도뷰) 우측 컨트롤과 겹친다 —
+    // 사용자 제보처럼 패널 닫기(×)가 줌 +/− 와 붙어 보였다. 컨트롤을 없애면 줌·저작권을
+    // 잃으므로, 패널이 안 가리는 왼쪽으로 옮겨 둘 다 보이고 누를 수 있게 한다.
+    // 모바일은 상세가 하단 시트라 왼쪽/오른쪽 어느 쪽이든 안 겹치지만, 코너를 하나로 통일한다.
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+    map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: false }), 'top-left');
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
     map.on('load', () => {
       map.addSource(SOURCE, {

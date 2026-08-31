@@ -12,3 +12,4 @@ next-env.d.ts
 scripts/pet-raw.json
 .env*
 !.env.example
+.gstack/
