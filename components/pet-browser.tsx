@@ -183,7 +183,7 @@ export function PetBrowser({ spots, generatedAt }: { spots: SpotListItem[]; gene
         <div className="flex items-center gap-2">
           <PawPrint className="text-primary size-5" />
           <div>
-            <h1 className="text-base leading-tight font-bold">멍냥로드</h1>
+            <h1 className="text-base leading-tight font-bold">멍냥나우</h1>
             <p className="text-muted-foreground text-[11px] leading-tight">
               반려동물 동반여행 지도 · {spots.length.toLocaleString()}곳
             </p>

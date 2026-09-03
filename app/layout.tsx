@@ -11,9 +11,25 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: '멍냥로드 — 반려동물 동반여행 지도',
+  title: '멍냥나우 — 반려동물 동반여행 지도',
+  applicationName: '멍냥나우',
   description:
     '반려동물과 함께 갈 수 있는 전국 관광지·카페·숙소를 지도에서 찾습니다. 전구역/일부구역 동반 가능 여부로 걸러 헛걸음을 줄이세요. 한국관광공사 TourAPI 기반.',
+  openGraph: {
+    siteName: '멍냥나우',
+    title: '멍냥나우 — 반려동물 동반여행 지도',
+    description:
+      '반려동물과 함께 갈 수 있는 전국 관광지·카페·숙소를 지도에서 찾습니다. 전구역/일부구역 동반 가능 여부로 걸러 헛걸음을 줄이세요. 한국관광공사 TourAPI 기반.',
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: '멍냥나우 — 반려동물 동반여행 지도',
+    description:
+      '반려동물과 함께 갈 수 있는 전국 관광지·카페·숙소를 지도에서 찾습니다. 전구역/일부구역 동반 가능 여부로 걸러 헛걸음을 줄이세요. 한국관광공사 TourAPI 기반.',
+  },
+  appleWebApp: { title: '멍냥나우' },
 };
 
 export const viewport: Viewport = {
